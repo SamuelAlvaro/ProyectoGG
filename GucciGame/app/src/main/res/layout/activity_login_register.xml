@@ -1,0 +1,33 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/textWelcome"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/black"
+        android:text="¡Bienvenido a GucciGame!"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp" />
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/green"
+        android:text="Iniciar Sesión"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnRegistrar"
+        android:layout_width="match_parent"
+        android:backgroundTint="@color/blue"
+        android:layout_height="wrap_content"
+        android:text="Registrarse" />
+</LinearLayout>
