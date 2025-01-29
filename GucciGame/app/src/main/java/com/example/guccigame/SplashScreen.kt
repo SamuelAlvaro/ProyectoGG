@@ -24,23 +24,24 @@ class SplashScreen : AppCompatActivity() {
 
         //Iniciamos el efecto
         logo.startAnimation(fadeIn)
+        //Implementamos el handler que espera 3 segundos para cargar el activityMain
+        Handler(Looper.getMainLooper()).postDelayed({
+            logo.startAnimation(fadeIn)
+            //Acabamos la actividad
 
+        }, 4000)
         //ABRIMOS EL FICHERO SHARED PREFENCES
         val sharedPref = getSharedPreferences("MisPreferencias", MODE_PRIVATE)
 
         val usuario = sharedPref.getString("Usuario", "")
         val passwd = sharedPref.getString("Passwd", "")
 
-        if (usuario == "" || passwd == ""){
+        if (usuario == "" && passwd == ""){
                 //CARGAR ACTIVIDAD DE SELECCIÓN DE LOGIN Y REGISTRO
 
-            //Implementamos el handler que espera 3 segundos para cargar el activityMain
-            Handler(Looper.getMainLooper()).postDelayed({
-                //Iniciamos la actividad principal
-                startActivity(Intent(this, LoginRegister::class.java))
-                //Acabamos la actividad
 
-            }, 4000)
+            //Iniciamos la actividad principal
+            startActivity(Intent(this, LoginRegister::class.java))
         }else{
             //Implementamos el handler que espera 3 segundos para cargar el activityMain
             Handler(Looper.getMainLooper()).postDelayed({
