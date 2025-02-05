@@ -17,7 +17,7 @@ class SplashScreen : AppCompatActivity() {
         setContentView(R.layout.activity_splash_screen)
 
         //Asociamos a la variable la imagen que tenemos:
-        val logo = findViewById<ImageView>(R.id.logo)
+        val logo   = findViewById<ImageView>(R.id.logo)
 
         // Aplicamos el efecto
         val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in)

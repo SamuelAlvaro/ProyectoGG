@@ -5,6 +5,7 @@ import DBHelper
 import Usuarios
 import android.content.ContentValues
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.text.InputType
 import android.widget.Button
@@ -14,13 +15,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.example.guccigame.Login
-import com.example.guccigame.LoginRegister
 import com.example.guccigame.R
 import com.example.guccigame.UsuariosSqlite
-import org.w3c.dom.Text
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -33,6 +30,8 @@ class Registro : AppCompatActivity() {
     lateinit var cajaMail: EditText
     private var bandera: Boolean = false
     lateinit var botonRegistro: Button
+    private lateinit var dbHelper: DBHelper  // Declaramos DBHelper a nivel de clase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -40,120 +39,130 @@ class Registro : AppCompatActivity() {
 
         cajaUsuario = findViewById(R.id.reg_username)
         cajaMail = findViewById(R.id.reg_email)
+        cajaPasswd = findViewById(R.id.et_password)
+        botonRegistro = findViewById(R.id.btn_register)
 
+        // Inicializamos DBHelper
+        dbHelper = DBHelper(this)  // Ahora se inicializa una vez en onCreate
 
         val redirector = findViewById<TextView>(R.id.tv_login_redirect)
         redirector.setOnClickListener {
             startActivity(Intent(this, Login::class.java))
         }
 
-        //es la bandera que nos ayudará a determinar qué imagen se ve en la contraseña
-        cajaPasswd = findViewById(R.id.et_password)
         val visualizador = findViewById<ImageView>(R.id.toggle_passwd)
-
         visualizador.setOnClickListener {
             bandera = !bandera
-
-            if (bandera) {
-                cajaPasswd.inputType = InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                visualizador.setImageResource(R.drawable.ocultarpasswd)
+            cajaPasswd.inputType = if (bandera) {
+                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
             } else {
-                cajaPasswd.inputType = InputType.TYPE_TEXT_VARIATION_PASSWORD
-                visualizador.setImageResource(R.drawable.mostrarpasswd)
+                InputType.TYPE_TEXT_VARIATION_PASSWORD
             }
+            visualizador.setImageResource(
+                if (bandera) R.drawable.ocultarpasswd else R.drawable.mostrarpasswd
+            )
         }
 
-        botonRegistro = findViewById(R.id.btn_register)
-
         botonRegistro.setOnClickListener {
+            //SI le damos al click del boton, validamos si se puede insertar o no!
             if (validarDatos()) {
                 crearUsuario()
             } else {
-                MostrarMensaje("Todo mal")
+                mostrarMensaje("Introduzca los datos correctamente por favor!")
             }
         }
-
-
     }
 
     fun validarDatos(): Boolean {
-        //verificamos los datos que nos introduce el usuario
-        if (cajaUsuario.text.toString() == "") {
-            MostrarMensaje("Introduzca el usuario!")
+        if (cajaUsuario.text.toString().trim().isEmpty()) {
+            mostrarMensaje("Introduzca el usuario!")
             return false
         }
 
-        if (cajaMail.text.toString() == "" || (!cajaMail.text.toString()
-                .endsWith("@gmail.com")) && cajaMail.text.toString().length > 11
+        if (cajaMail.text.toString().trim().isEmpty() ||
+            (!cajaMail.text.toString().endsWith("@gmail.com")) && cajaMail.text.toString().length > 11
         ) {
-            MostrarMensaje("Introduzca un mail válido, y este debe pertenecer al dominio @gmail.com")
+            mostrarMensaje("Introduzca un mail válido, y este debe pertenecer al dominio @gmail.com")
             return false
         }
 
-        if (cajaPasswd.text.toString() == "" || cajaPasswd.text.toString().length < 8) {
-            MostrarMensaje("La contraseña debe contener mínimo 8 caracteres!")
+        if (cajaPasswd.text.toString().trim().isEmpty() || cajaPasswd.text.toString().length < 8) {
+            mostrarMensaje("La contraseña debe contener mínimo 8 caracteres!")
             return false
         }
 
         return true
-
-
     }
 
     fun crearUsuario() {
-        var BASE_URL = "http://172.30.2.37/"
-        var apiservice: ApiUsuarios
-
-        //nos conectamos al servidor:
+        val BASE_URL = "http://172.30.2.142/"
         val retrofit = Retrofit.Builder()
-            .baseUrl(BASE_URL).addConverterFactory(GsonConverterFactory.create()).build()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        val apiService = retrofit.create(ApiUsuarios::class.java)
 
-        apiservice = retrofit.create(ApiUsuarios::class.java)
         val nuevoUsuario = Usuarios(
             cajaUsuario.text.toString(),
             cajaMail.text.toString(),
             cajaPasswd.text.toString(),
             "Facil"
         )
-        //EL NIVEL AL INICIO SIEMPRE VA A SER FÁCIL
-        apiservice.registrarUsuario(nuevoUsuario).enqueue(object : Callback<Void>{
+
+        val call: Call<Void> = apiService.registrarUsuario(nuevoUsuario)
+
+        call.enqueue(object : Callback<Void> {
             override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                if(response.isSuccessful){
-                    MostrarMensaje("Usuario registrado correctamente!!")
-                    val dbHelper = DBHelper(this@Registro)
-                    //abrimos la base de datos para escritura
-                    val db = dbHelper.writableDatabase
+                if (response.isSuccessful) {
+                    mostrarMensaje("Se ha registrado correctamente")
 
-                    //Instanciamos un usuario de sqlite
-                    val usuarioSqlite = UsuariosSqlite(cajaMail.text.toString(), 0)
+                    // Guardar el usuario también en SQLite
+                    guardarEnSQLite(nuevoUsuario)
 
-                    //insertamos al usuario instanciado
-                    val valores = ContentValues().apply {
-                        put("correo", usuarioSqlite.correo)
-                        put("puntuacion",usuarioSqlite.puntuacion)
-                    }
+                    // Guardar el usuario en SharedPreferences
+                    guardarEnSharedPreferences(nuevoUsuario.nombre, nuevoUsuario.passwd, 0)
 
-                    val insertResult = db.insert("Usuarios", null, valores)
+                    val Intent = Intent(this@Registro, Login::class.java)
 
-                    //comprobamos que se ha insertado correctamente
-                    if (insertResult != -1L) {
-                        MostrarMensaje("Usuario registrado correctamente en SQLite también!")
-                    } else {
-                        MostrarMensaje("Error al registrar usuario en SQLite")
-                    }
-                }else{
-                    MostrarMensaje("Error al registrar Usuario!")
+                } else {
+                    mostrarMensaje("Error al registrar en la base externa.")
                 }
             }
 
             override fun onFailure(call: Call<Void>, t: Throwable) {
-                MostrarMensaje("Error de conexion: ${t.message}")
-                t.printStackTrace()
+                mostrarMensaje("No se pudo insertar en la base externa: ${t.message}")
             }
         })
     }
 
-    fun MostrarMensaje(nota: String) {
-        Toast.makeText(this, nota, Toast.LENGTH_LONG).show()
+    fun guardarEnSQLite(usuario: Usuarios) {
+        val db = dbHelper.writableDatabase
+        val values = ContentValues().apply {
+            put("correo", usuario.correo)
+            put("nombre", usuario.nombre)
+            put("password", usuario.passwd)
+            put("puntuacion", 0)
+        }
+
+        val newRowId = db.insert("Usuarios", null, values)
+        if (newRowId != -1L) {
+            mostrarMensaje("Usuario guardado en SQLite correctamente!")
+
+        } else {
+            mostrarMensaje("Error al guardar en SQLite.")
+        }
+    }
+
+    fun guardarEnSharedPreferences(usuario: String, password: String, puntuacion: Int) {
+        val sharedPref = getSharedPreferences("mis_preferencias", MODE_PRIVATE)
+        val editor = sharedPref.edit()
+        editor.putString("Usuario", usuario)
+        editor.putString("Passwd", password)
+        editor.putInt("Puntuacion", puntuacion)
+        editor.apply()
+    }
+
+    fun mostrarMensaje(mensaje: String) {
+        Toast.makeText(this, mensaje, Toast.LENGTH_LONG).show()
     }
 }

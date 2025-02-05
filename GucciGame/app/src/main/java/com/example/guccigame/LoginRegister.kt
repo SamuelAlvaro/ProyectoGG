@@ -21,6 +21,11 @@ class LoginRegister : AppCompatActivity() {
             startActivity(Intent(this, Registro::class.java))
             finish()
         }
+        botonLogin = findViewById(R.id.btnLogin)
+        botonLogin.setOnClickListener{
+            startActivity(Intent(this, Login::class.java))
+            finish()
+        }
 
 
     }
